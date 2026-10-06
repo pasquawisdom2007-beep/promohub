@@ -106,28 +106,131 @@ enum NotificationType {
   WALLET_TRANSACTION
   WITHDRAWAL_UPDATE
   SUPPORT_TICKET_UPDATE
+  CAMPAIGN_ACTIVE
+  PLACEMENT_COMPLETED
+  CAMPAIGN_OPPORTUNITY
+  PLACEMENT_DEADLINE
+  PLACEMENT_APPROVED
+  PAYMENT_RECEIVED
+  PERFORMANCE_UPDATE
+  CAMPAIGN_AVAILABLE
+  CAMPAIGN_ACCEPTED
+  PLACEMENT_SUBMITTED
+  PLACEMENT_REJECTED
+  EARNINGS_CREDITED
+  WITHDRAWAL_COMPLETED
+}
+
+enum PublisherStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  REJECTED
+}
+
+enum AgentStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  REJECTED
+}
+
+enum ApprovalMode {
+  MANUAL
+  AUTOMATIC
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum PlacementStatus {
+  PENDING
+  APPROVED
+  SCHEDULED
+  POSTED
+  FAILED
+  REJECTED
+  EXPIRED
+}
+
+enum AgentOpportunityStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum AgentSubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum RatingTargetType {
+  ADVERTISER
+  PUBLISHER
+  AGENT
+}
+
+enum ReferralType {
+  ADVERTISER
+  PUBLISHER
+  AGENT
+}
+
+enum ReferralStatus {
+  PENDING
+  QUALIFIED
+  PAID
+  REJECTED
 }
 
 model User {
-  id             String          @id @default(cuid())
-  telegramId     String          @unique
-  username       String?
-  firstName      String
-  lastName       String?
-  status         UserStatus      @default(ACTIVE)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  lastActiveAt   DateTime        @default(now())
-  roles          UserRole[]
-  wallet         Wallet?
-  advertiser     Advertiser?
-  publisher      Publisher?
-  agent          Agent?
-  campaigns      Campaign[]
-  tickets        SupportTicket[]
-  ledger         Transactions[]
-  notifications  Notification[]
-  moderationLogs ModerationLog[]
+  id                 String                     @id @default(cuid())
+  telegramId         String                     @unique
+  username           String?
+  firstName          String
+  lastName           String?
+  status             UserStatus                 @default(ACTIVE)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  lastActiveAt       DateTime                   @default(now())
+  roles              UserRole[]
+  wallet             Wallet?
+  advertiser         Advertiser?
+  publisher          Publisher?
+  agent              Agent?
+  campaigns          Campaign[]
+  tickets            SupportTicket[]
+  ledger             Transactions[]
+  notifications      Notification[]
+  moderationLogs     ModerationLog[]
+  agentOpportunities AgentOpportunity[]
+  agentSubmissions   AgentPlacementSubmission[]
+  ratingsGiven       Rating[]                   @relation("RatingsGiven")
+  ratingsReceived    Rating[]                   @relation("RatingsReceived")
+  referralsMade      Referral[]                 @relation("Referrer")
+  referralsReceived  Referral[]                 @relation("Referee")
+  withdrawals        Withdrawal[]
 }
 
 model UserRole {
@@ -146,33 +249,59 @@ model Advertiser {
 }
 
 model Publisher {
-  id          String      @id @default(cuid())
-  userId      String      @unique
-  user        User        @relation(fields: [userId], references: [id])
-  communities Community[]
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id])
+  status             PublisherStatus    @default(PENDING)
+  category           String?
+  description        String?
+  audienceLocation   String?
+  advertisingPrice   Int                @default(0)
+  maxAdsPerDay       Int                @default(1)
+  acceptedCategories String?
+  approvalMode       ApprovalMode       @default(MANUAL)
+  availability       AvailabilityStatus @default(AVAILABLE)
+  communities        Community[]
+  placements         Placement[]
 }
 
 model Agent {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
+  id                 String                     @id @default(cuid())
+  userId             String                     @unique
+  user               User                       @relation(fields: [userId], references: [id])
+  status             AgentStatus                @default(PENDING)
+  contactInformation String?
+  country            String?
+  areas              String?
+  platformType       String?
+  acceptedCategories String?
+  paymentDetails     String?
+  availability       AvailabilityStatus         @default(AVAILABLE)
+  opportunities      AgentOpportunity[]
+  submissions        AgentPlacementSubmission[]
+  placements         Placement[]
 }
 
 model Community {
-  id           String      @id @default(cuid())
-  publisherId  String
-  publisher    Publisher   @relation(fields: [publisherId], references: [id])
-  name         String
-  platform     Platform
-  audienceSize Int?
-  placements   Placement[]
+  id                  String      @id @default(cuid())
+  publisherId         String
+  publisher           Publisher   @relation(fields: [publisherId], references: [id])
+  name                String
+  platform            Platform
+  audienceSize        Int?
+  communityType       String?
+  category            String?
+  description         String?
+  targetLocation      String?
+  memberCountVerified Boolean     @default(false)
+  placements          Placement[]
 }
 
 model Campaign {
-  id                String              @id @default(cuid())
-  publicId          String              @unique
+  id                String                     @id @default(cuid())
+  publicId          String                     @unique
   advertiserId      String
-  advertiser        Advertiser          @relation(fields: [advertiserId], references: [id])
+  advertiser        Advertiser                 @relation(fields: [advertiserId], references: [id])
   title             String
   destination       String
   description       String
@@ -182,23 +311,27 @@ model Campaign {
   targetAudience    String?
   targetLocation    String?
   budget            Int
-  spentAmount       Int                 @default(0)
+  spentAmount       Int                        @default(0)
   remainingBalance  Int
   platform          Platform
   objective         Objective
   startDate         DateTime?
   endDate           DateTime?
-  status            CampaignStatus      @default(DRAFT)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  status            CampaignStatus             @default(DRAFT)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
   advertisements    Advertisement[]
   placements        Placement[]
   analytics         CampaignAnalytics[]
   moderationLogs    ModerationLog[]
-  user              User?               @relation(fields: [userId], references: [id])
+  user              User?                      @relation(fields: [userId], references: [id])
   userId            String?
   trackingLinks     TrackingLink[]
   ratings           Rating[]
+  opportunities     AgentOpportunity[]
+  submissions       AgentPlacementSubmission[]
+  allocations       CampaignAllocation[]
+  clickEvents       ClickEvent[]
 }
 
 model Advertisement {
@@ -211,13 +344,27 @@ model Advertisement {
 }
 
 model Placement {
-  id          String    @id @default(cuid())
-  campaignId  String
-  campaign    Campaign  @relation(fields: [campaignId], references: [id])
-  communityId String
-  community   Community @relation(fields: [communityId], references: [id])
-  status      String    @default("PENDING")
-  scheduledAt DateTime?
+  id                String                     @id @default(cuid())
+  campaignId        String
+  campaign          Campaign                   @relation(fields: [campaignId], references: [id])
+  communityId       String
+  community         Community                  @relation(fields: [communityId], references: [id])
+  publisherId       String?
+  publisher         Publisher?                 @relation(fields: [publisherId], references: [id])
+  agentId           String?
+  agent             Agent?                     @relation(fields: [agentId], references: [id])
+  price             Int                        @default(0)
+  status            PlacementStatus            @default(PENDING)
+  scheduledAt       DateTime?
+  postedAt          DateTime?
+  telegramMessageId String?
+  destination       String?
+  trackingLink      TrackingLink?
+  submissions       AgentPlacementSubmission[]
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@index([publisherId, createdAt])
 }
 
 model Wallet {
@@ -247,11 +394,15 @@ model Transactions {
 }
 
 model Withdrawal {
-  id        String   @id @default(cuid())
-  userId    String
-  amount    Int
-  status    String   @default("PENDING")
-  createdAt DateTime @default(now())
+  id               String           @id @default(cuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id])
+  amount           Int
+  status           WithdrawalStatus @default(PENDING)
+  paymentReference String?
+  adminNote        String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 }
 
 model Deposit {
@@ -264,13 +415,16 @@ model Deposit {
 }
 
 model TrackingLink {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   campaignId  String
-  campaign    Campaign @relation(fields: [campaignId], references: [id])
-  token       String   @unique
+  campaign    Campaign     @relation(fields: [campaignId], references: [id])
+  placementId String       @unique
+  placement   Placement    @relation(fields: [placementId], references: [id])
+  token       String       @unique
   destination String
-  clicks      Int      @default(0)
-  createdAt   DateTime @default(now())
+  clicks      Int          @default(0)
+  clickEvents ClickEvent[]
+  createdAt   DateTime     @default(now())
 }
 
 model CampaignAnalytics {
@@ -284,23 +438,38 @@ model CampaignAnalytics {
 }
 
 model Rating {
-  id         String   @id @default(cuid())
-  campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  raterId    String
-  score      Int
-  comment    String?
-  createdAt  DateTime @default(now())
+  id                String           @id @default(cuid())
+  campaignId        String
+  campaign          Campaign         @relation(fields: [campaignId], references: [id])
+  raterId           String
+  rater             User             @relation("RatingsGiven", fields: [raterId], references: [id])
+  targetUserId      String
+  target            User             @relation("RatingsReceived", fields: [targetUserId], references: [id])
+  targetType        RatingTargetType
+  communityQuality  Int?
+  audienceRelevance Int?
+  performance       Int?
+  score             Int
+  comment           String?
+  createdAt         DateTime         @default(now())
+
+  @@unique([campaignId, raterId, targetUserId])
 }
 
 model Referral {
-  id         String   @id @default(cuid())
-  referrerId String
-  refereeId  String
-  reward     Int      @default(0)
-  createdAt  DateTime @default(now())
+  id              String         @id @default(cuid())
+  referrerId      String
+  referrer        User           @relation("Referrer", fields: [referrerId], references: [id])
+  refereeId       String
+  referee         User           @relation("Referee", fields: [refereeId], references: [id])
+  type            ReferralType
+  qualifyingEvent String
+  reward          Int            @default(0)
+  status          ReferralStatus @default(PENDING)
+  createdAt       DateTime       @default(now())
+  paidAt          DateTime?
 
-  @@unique([referrerId, refereeId])
+  @@unique([referrerId, refereeId, qualifyingEvent])
 }
 
 model SupportTicket {
@@ -346,6 +515,72 @@ model Notification {
   body      String
   readAt    DateTime?
   createdAt DateTime         @default(now())
+}
+
+model AgentOpportunity {
+  id         String                 @id @default(cuid())
+  campaignId String
+  campaign   Campaign               @relation(fields: [campaignId], references: [id])
+  agentId    String
+  agent      Agent                  @relation(fields: [agentId], references: [id])
+  reward     Int
+  deadline   DateTime?
+  status     AgentOpportunityStatus @default(OFFERED)
+  acceptedAt DateTime?
+  createdAt  DateTime               @default(now())
+  user       User?                  @relation(fields: [userId], references: [id])
+  userId     String?
+
+  @@unique([campaignId, agentId])
+}
+
+model AgentPlacementSubmission {
+  id            String                @id @default(cuid())
+  campaignId    String
+  campaign      Campaign              @relation(fields: [campaignId], references: [id])
+  agentId       String
+  agent         Agent                 @relation(fields: [agentId], references: [id])
+  placementId   String?
+  placement     Placement?            @relation(fields: [placementId], references: [id])
+  communityName String
+  communityType String
+  information   String
+  proofUrl      String?
+  notes         String?
+  status        AgentSubmissionStatus @default(SUBMITTED)
+  verification  VerificationStatus    @default(PENDING)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  user          User?                 @relation(fields: [userId], references: [id])
+  userId        String?
+}
+
+model CampaignAllocation {
+  id             String   @id @default(cuid())
+  campaignId     String
+  campaign       Campaign @relation(fields: [campaignId], references: [id])
+  placementId    String?
+  recipientId    String
+  recipientType  String
+  amount         Int
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([campaignId, recipientType])
+}
+
+model ClickEvent {
+  id             String       @id @default(cuid())
+  campaignId     String
+  campaign       Campaign     @relation(fields: [campaignId], references: [id])
+  trackingLinkId String
+  trackingLink   TrackingLink @relation(fields: [trackingLinkId], references: [id])
+  placementId    String
+  occurredAt     DateTime     @default(now())
+  userAgent      String?
+  source         String?
+
+  @@index([campaignId, occurredAt])
 }
 
 model Setting {
