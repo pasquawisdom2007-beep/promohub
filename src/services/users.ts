@@ -1,0 +1,4 @@
+import { RoleName, UserStatus } from '@prisma/client'; import { db } from '../db/client.js';
+export async function upsertTelegramUser(input:{telegramId:string;username?:string;firstName:string;lastName?:string}){return db.user.upsert({where:{telegramId:input.telegramId},create:{...input,roles:{create:{role:RoleName.USER}}},update:{username:input.username,firstName:input.firstName,lastName:input.lastName,lastActiveAt:new Date()}});}
+export async function assignRole(userId:string,role:RoleName){return db.userRole.upsert({where:{userId_role:{userId,role}},create:{userId,role},update:{}});}
+export async function authorize(userId:string,roles:RoleName[]){const user=await db.user.findUnique({where:{id:userId},include:{roles:true}});return !!user&&user.status===UserStatus.ACTIVE&&user.roles.some(r=>roles.includes(r.role));}

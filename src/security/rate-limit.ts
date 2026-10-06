@@ -1,0 +1,1 @@
+export class RateLimiter { private buckets=new Map<string,{count:number,reset:number}>(); constructor(private max:number,private windowMs:number){} check(key:string){const now=Date.now();const old=this.buckets.get(key);if(!old||old.reset<=now){this.buckets.set(key,{count:1,reset:now+this.windowMs});return true;} if(old.count>=this.max)return false;old.count++;return true;} }
