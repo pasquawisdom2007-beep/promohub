@@ -1,36 +1,355 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "sqlite" url = env("DATABASE_URL") }
-enum UserStatus { ACTIVE SUSPENDED BANNED }
-enum RoleName { USER ADVERTISER PUBLISHER WHATSAPP_AGENT ADMIN SUPER_ADMIN }
-enum CampaignStatus { DRAFT PENDING_REVIEW AWAITING_PAYMENT ACTIVE PAUSED COMPLETED CANCELLED REJECTED }
-enum Platform { TELEGRAM_CHANNEL TELEGRAM_GROUP WHATSAPP_CHANNEL WHATSAPP_GROUP WEBSITE }
-enum Objective { MEMBERS VIEWS CLICKS EXPOSURE }
-enum LedgerType { DEPOSIT WITHDRAWAL CAMPAIGN_CHARGE PUBLISHER_EARNING AGENT_EARNING REFUND COMMISSION ADJUSTMENT }
-enum LedgerStatus { PENDING POSTED VOIDED }
-enum ModerationAction { APPROVE REJECT REQUEST_CHANGES BAN_ADVERTISER }
-enum TicketCategory { PAYMENT CAMPAIGN PUBLISHER AGENT TECHNICAL REPORT OTHER }
-enum TicketStatus { OPEN IN_PROGRESS WAITING_USER RESOLVED CLOSED }
-enum TicketPriority { LOW NORMAL HIGH URGENT }
-enum NotificationType { CAMPAIGN_APPROVED CAMPAIGN_REJECTED CAMPAIGN_STARTED BUDGET_LOW CAMPAIGN_COMPLETED WALLET_TRANSACTION WITHDRAWAL_UPDATE SUPPORT_TICKET_UPDATE }
-model User { id String @id @default(cuid()) telegramId String @unique username String? firstName String lastName String? status UserStatus @default(ACTIVE) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt lastActiveAt DateTime @default(now()) roles UserRole[] wallet Wallet? advertiser Advertiser? publisher Publisher? agent Agent? campaigns Campaign[] tickets SupportTicket[] ledger Transactions[] notifications Notification[] moderationLogs ModerationLog[] }
-model UserRole { userId String role RoleName user User @relation(fields:[userId],references:[id],onDelete:Cascade) @@id([userId,role]) }
-model Advertiser { id String @id @default(cuid()) userId String @unique user User @relation(fields:[userId],references:[id]) campaigns Campaign[] }
-model Publisher { id String @id @default(cuid()) userId String @unique user User @relation(fields:[userId],references:[id]) communities Community[] }
-model Agent { id String @id @default(cuid()) userId String @unique user User @relation(fields:[userId],references:[id]) }
-model Community { id String @id @default(cuid()) publisherId String publisher Publisher @relation(fields:[publisherId],references:[id]) name String platform Platform audienceSize Int? placements Placement[] }
-model Campaign { id String @id @default(cuid()) publicId String @unique advertiserId String advertiser Advertiser @relation(fields:[advertiserId],references:[id]) title String destination String description String advertisementText String mediaUrl String? category String? targetAudience String? targetLocation String? budget Int spentAmount Int @default(0) remainingBalance Int platform Platform objective Objective startDate DateTime? endDate DateTime? status CampaignStatus @default(DRAFT) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt advertisements Advertisement[] placements Placement[] analytics CampaignAnalytics[] moderationLogs ModerationLog[] }
-model Advertisement { id String @id @default(cuid()) campaignId String campaign Campaign @relation(fields:[campaignId],references:[id],onDelete:Cascade) content String status String @default("PENDING") createdAt DateTime @default(now()) }
-model Placement { id String @id @default(cuid()) campaignId String campaign Campaign @relation(fields:[campaignId],references:[id]) communityId String community Community @relation(fields:[communityId],references:[id]) status String @default("PENDING") scheduledAt DateTime? }
-model Wallet { id String @id @default(cuid()) userId String @unique user User @relation(fields:[userId],references:[id]) availableBalance Int @default(0) pendingBalance Int @default(0) totalSpent Int @default(0) totalEarned Int @default(0) transactions Transactions[] }
-model Transactions { id String @id @default(cuid()) idempotencyKey String @unique walletId String userId String user User @relation(fields:[userId],references:[id]) wallet Wallet @relation(fields:[walletId],references:[id]) amount Int type LedgerType status LedgerStatus @default(POSTED) description String metadata String? createdAt DateTime @default(now()) }
-model Withdrawal { id String @id @default(cuid()) userId String amount Int status String @default("PENDING") createdAt DateTime @default(now()) }
-model Deposit { id String @id @default(cuid()) userId String amount Int providerReference String @unique status String @default("PENDING") createdAt DateTime @default(now()) }
-model TrackingLink { id String @id @default(cuid()) campaignId String campaign Campaign @relation(fields:[campaignId],references:[id]) token String @unique destination String clicks Int @default(0) createdAt DateTime @default(now()) }
-model CampaignAnalytics { id String @id @default(cuid()) campaignId String campaign Campaign @relation(fields:[campaignId],references:[id]) impressions Int @default(0) clicks Int @default(0) conversions Int @default(0) recordedAt DateTime @default(now()) }
-model Rating { id String @id @default(cuid()) campaignId String campaign Campaign @relation(fields:[campaignId],references:[id]) raterId String score Int comment String? createdAt DateTime @default(now()) }
-model Referral { id String @id @default(cuid()) referrerId String refereeId String reward Int @default(0) createdAt DateTime @default(now()) @@unique([referrerId,refereeId]) }
-model SupportTicket { id String @id @default(cuid()) userId String user User @relation(fields:[userId],references:[id]) category TicketCategory subject String message String status TicketStatus @default(OPEN) priority TicketPriority @default(NORMAL) assignedAdminId String? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Report { id String @id @default(cuid()) reporterId String subject String description String status String @default("OPEN") createdAt DateTime @default(now()) }
-model ModerationLog { id String @id @default(cuid()) campaignId String campaign Campaign @relation(fields:[campaignId],references:[id]) moderatorId String moderator User @relation(fields:[moderatorId],references:[id]) action ModerationAction reason String? createdAt DateTime @default(now()) }
-model Notification { id String @id @default(cuid()) userId String user User @relation(fields:[userId],references:[id]) type NotificationType title String body String readAt DateTime? createdAt DateTime @default(now()) }
-model Setting { key String @id value String updatedAt DateTime @updatedAt }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum RoleName {
+  USER
+  ADVERTISER
+  PUBLISHER
+  WHATSAPP_AGENT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_REVIEW
+  AWAITING_PAYMENT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum Platform {
+  TELEGRAM_CHANNEL
+  TELEGRAM_GROUP
+  WHATSAPP_CHANNEL
+  WHATSAPP_GROUP
+  WEBSITE
+}
+
+enum Objective {
+  MEMBERS
+  VIEWS
+  CLICKS
+  EXPOSURE
+}
+
+enum LedgerType {
+  DEPOSIT
+  WITHDRAWAL
+  CAMPAIGN_CHARGE
+  PUBLISHER_EARNING
+  AGENT_EARNING
+  REFUND
+  COMMISSION
+  ADJUSTMENT
+}
+
+enum LedgerStatus {
+  PENDING
+  POSTED
+  VOIDED
+}
+
+enum ModerationAction {
+  APPROVE
+  REJECT
+  REQUEST_CHANGES
+  BAN_ADVERTISER
+}
+
+enum TicketCategory {
+  PAYMENT
+  CAMPAIGN
+  PUBLISHER
+  AGENT
+  TECHNICAL
+  REPORT
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  CAMPAIGN_APPROVED
+  CAMPAIGN_REJECTED
+  CAMPAIGN_STARTED
+  BUDGET_LOW
+  CAMPAIGN_COMPLETED
+  WALLET_TRANSACTION
+  WITHDRAWAL_UPDATE
+  SUPPORT_TICKET_UPDATE
+}
+
+model User {
+  id             String          @id @default(cuid())
+  telegramId     String          @unique
+  username       String?
+  firstName      String
+  lastName       String?
+  status         UserStatus      @default(ACTIVE)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  lastActiveAt   DateTime        @default(now())
+  roles          UserRole[]
+  wallet         Wallet?
+  advertiser     Advertiser?
+  publisher      Publisher?
+  agent          Agent?
+  campaigns      Campaign[]
+  tickets        SupportTicket[]
+  ledger         Transactions[]
+  notifications  Notification[]
+  moderationLogs ModerationLog[]
+}
+
+model UserRole {
+  userId String
+  role   RoleName
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model Advertiser {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id])
+  campaigns Campaign[]
+}
+
+model Publisher {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  user        User        @relation(fields: [userId], references: [id])
+  communities Community[]
+}
+
+model Agent {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Community {
+  id           String      @id @default(cuid())
+  publisherId  String
+  publisher    Publisher   @relation(fields: [publisherId], references: [id])
+  name         String
+  platform     Platform
+  audienceSize Int?
+  placements   Placement[]
+}
+
+model Campaign {
+  id                String              @id @default(cuid())
+  publicId          String              @unique
+  advertiserId      String
+  advertiser        Advertiser          @relation(fields: [advertiserId], references: [id])
+  title             String
+  destination       String
+  description       String
+  advertisementText String
+  mediaUrl          String?
+  category          String?
+  targetAudience    String?
+  targetLocation    String?
+  budget            Int
+  spentAmount       Int                 @default(0)
+  remainingBalance  Int
+  platform          Platform
+  objective         Objective
+  startDate         DateTime?
+  endDate           DateTime?
+  status            CampaignStatus      @default(DRAFT)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  advertisements    Advertisement[]
+  placements        Placement[]
+  analytics         CampaignAnalytics[]
+  moderationLogs    ModerationLog[]
+  user              User?               @relation(fields: [userId], references: [id])
+  userId            String?
+  trackingLinks     TrackingLink[]
+  ratings           Rating[]
+}
+
+model Advertisement {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  content    String
+  status     String   @default("PENDING")
+  createdAt  DateTime @default(now())
+}
+
+model Placement {
+  id          String    @id @default(cuid())
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id])
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+  status      String    @default("PENDING")
+  scheduledAt DateTime?
+}
+
+model Wallet {
+  id               String         @id @default(cuid())
+  userId           String         @unique
+  user             User           @relation(fields: [userId], references: [id])
+  availableBalance Int            @default(0)
+  pendingBalance   Int            @default(0)
+  totalSpent       Int            @default(0)
+  totalEarned      Int            @default(0)
+  transactions     Transactions[]
+}
+
+model Transactions {
+  id             String       @id @default(cuid())
+  idempotencyKey String       @unique
+  walletId       String
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  wallet         Wallet       @relation(fields: [walletId], references: [id])
+  amount         Int
+  type           LedgerType
+  status         LedgerStatus @default(POSTED)
+  description    String
+  metadata       String?
+  createdAt      DateTime     @default(now())
+}
+
+model Withdrawal {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
+
+model Deposit {
+  id                String   @id @default(cuid())
+  userId            String
+  amount            Int
+  providerReference String   @unique
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+}
+
+model TrackingLink {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  token       String   @unique
+  destination String
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model CampaignAnalytics {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  conversions Int      @default(0)
+  recordedAt  DateTime @default(now())
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  raterId    String
+  score      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  refereeId  String
+  reward     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([referrerId, refereeId])
+}
+
+model SupportTicket {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+  category        TicketCategory
+  subject         String
+  message         String
+  status          TicketStatus   @default(OPEN)
+  priority        TicketPriority @default(NORMAL)
+  assignedAdminId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reporterId  String
+  subject     String
+  description String
+  status      String   @default("OPEN")
+  createdAt   DateTime @default(now())
+}
+
+model ModerationLog {
+  id          String           @id @default(cuid())
+  campaignId  String
+  campaign    Campaign         @relation(fields: [campaignId], references: [id])
+  moderatorId String
+  moderator   User             @relation(fields: [moderatorId], references: [id])
+  action      ModerationAction
+  reason      String?
+  createdAt   DateTime         @default(now())
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
