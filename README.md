@@ -59,3 +59,9 @@ Phase 2 extends the foundation without replacing it:
 - `ratings.ts`, `referrals.ts`, and `admin.ts`: persisted reputation/referral primitives and real-data aggregate metrics.
 
 When data is unavailable, analytics return zero/null values rather than fabricated records. The Telegram adapter remains deliberately thin; live Telegram permission verification, payment-provider integration, and end-to-end network tests require configured external credentials.
+
+## Phase 3 hardening
+
+Phase 3 remains on the consolidated `feature/promohub-phase-1` branch. It adds payment lifecycle records, payment methods, audit logs, risk flags, disputes, idempotent background-job records, notification preferences, performance scores, posting attempts, admin control services, structured redacted logging, CI checks, and operational documentation. See [`docs/phase3.md`](docs/phase3.md).
+
+The codebase does not claim live provider integrations, a deployed admin frontend, or production Telegram/WhatsApp connectivity without configured credentials and an actual deployment environment.

@@ -1,0 +1,2 @@
+export function logEvent(event:string,fields:Record<string,unknown>={}){const safe=Object.fromEntries(Object.entries(fields).filter(([key])=>!/(token|secret|password|credential|apiKey|private)/i.test(key)));console.log(JSON.stringify({time:new Date().toISOString(),event,...safe}));}
+export function logError(event:string,error:unknown,fields:Record<string,unknown>={}){logEvent(event,{...fields,error:error instanceof Error?error.message:'unknown error'});}

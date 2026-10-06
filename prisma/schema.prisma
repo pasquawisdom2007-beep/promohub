@@ -204,33 +204,115 @@ enum ReferralStatus {
   REJECTED
 }
 
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  COMPLETED
+  FAILED
+  REVERSED
+  REFUNDED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+  CONFIRMED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  ESCALATED
+}
+
+enum DisputeCategory {
+  FAILED_PLACEMENT
+  INCORRECT_AD
+  PUBLISHER_MISCONDUCT
+  AGENT_MISCONDUCT
+  PAYMENT
+  FRAUD
+  INCORRECT_REWARD
+  CAMPAIGN
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+}
+
+enum JobType {
+  NOTIFICATION
+  ANALYTICS
+  PLACEMENT_RETRY
+  PAYMENT_RECONCILIATION
+  CAMPAIGN_SCHEDULE
+  EXPIRY_PROCESSING
+}
+
+enum AuditAction {
+  LOGIN
+  SECURITY_EVENT
+  ADMIN_ACTION
+  WALLET_CHANGE
+  PAYMENT_EVENT
+  WITHDRAWAL_DECISION
+  CAMPAIGN_STATUS
+  MODERATION
+  USER_BAN
+  SETTING_CHANGE
+  REFERRAL_REWARD
+  FINANCIAL_ADJUSTMENT
+}
+
 model User {
-  id                 String                     @id @default(cuid())
-  telegramId         String                     @unique
-  username           String?
-  firstName          String
-  lastName           String?
-  status             UserStatus                 @default(ACTIVE)
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-  lastActiveAt       DateTime                   @default(now())
-  roles              UserRole[]
-  wallet             Wallet?
-  advertiser         Advertiser?
-  publisher          Publisher?
-  agent              Agent?
-  campaigns          Campaign[]
-  tickets            SupportTicket[]
-  ledger             Transactions[]
-  notifications      Notification[]
-  moderationLogs     ModerationLog[]
-  agentOpportunities AgentOpportunity[]
-  agentSubmissions   AgentPlacementSubmission[]
-  ratingsGiven       Rating[]                   @relation("RatingsGiven")
-  ratingsReceived    Rating[]                   @relation("RatingsReceived")
-  referralsMade      Referral[]                 @relation("Referrer")
-  referralsReceived  Referral[]                 @relation("Referee")
-  withdrawals        Withdrawal[]
+  id                      String                     @id @default(cuid())
+  telegramId              String                     @unique
+  username                String?
+  firstName               String
+  lastName                String?
+  status                  UserStatus                 @default(ACTIVE)
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  lastActiveAt            DateTime                   @default(now())
+  roles                   UserRole[]
+  wallet                  Wallet?
+  advertiser              Advertiser?
+  publisher               Publisher?
+  agent                   Agent?
+  campaigns               Campaign[]
+  tickets                 SupportTicket[]
+  ledger                  Transactions[]
+  notifications           Notification[]
+  moderationLogs          ModerationLog[]
+  agentOpportunities      AgentOpportunity[]
+  agentSubmissions        AgentPlacementSubmission[]
+  ratingsGiven            Rating[]                   @relation("RatingsGiven")
+  ratingsReceived         Rating[]                   @relation("RatingsReceived")
+  referralsMade           Referral[]                 @relation("Referrer")
+  referralsReceived       Referral[]                 @relation("Referee")
+  withdrawals             Withdrawal[]
+  auditEvents             AuditLog[]
+  riskFlags               RiskFlag[]
+  internalNotes           InternalNote[]
+  notificationPreferences NotificationPreference?
+  payments                Payment[]
+  paymentMethods          PaymentMethod[]
+  disputesReported        Dispute[]                  @relation("DisputeReporter")
+  performanceScores       PerformanceScore[]
 }
 
 model UserRole {
@@ -398,20 +480,33 @@ model Withdrawal {
   userId           String
   user             User             @relation(fields: [userId], references: [id])
   amount           Int
+  currency         String           @default("NGN")
   status           WithdrawalStatus @default(PENDING)
+  paymentMethodId  String?
+  paymentMethod    PaymentMethod?   @relation(fields: [paymentMethodId], references: [id])
   paymentReference String?
   adminNote        String?
+  fee              Int              @default(0)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
+
+  @@index([userId, status])
 }
 
 model Deposit {
-  id                String   @id @default(cuid())
-  userId            String
-  amount            Int
-  providerReference String   @unique
-  status            String   @default("PENDING")
-  createdAt         DateTime @default(now())
+  id                 String        @id @default(cuid())
+  userId             String
+  amount             Int
+  currency           String        @default("NGN")
+  providerReference  String        @unique
+  internalReference  String        @unique
+  status             PaymentStatus @default(PENDING)
+  verificationStatus String        @default("PENDING")
+  metadata           String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([userId, status])
 }
 
 model TrackingLink {
@@ -581,6 +676,160 @@ model ClickEvent {
   source         String?
 
   @@index([campaignId, occurredAt])
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  userId             String
+  user               User          @relation(fields: [userId], references: [id])
+  provider           String
+  providerReference  String        @unique
+  internalReference  String        @unique
+  amount             Int
+  currency           String
+  status             PaymentStatus @default(PENDING)
+  verificationStatus String        @default("PENDING")
+  metadata           String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([userId, status])
+}
+
+model PaymentMethod {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  methodType    String
+  label         String
+  maskedDetails String
+  providerToken String?
+  isDefault     Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  withdrawals   Withdrawal[]
+}
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  actorId       String?
+  actor         User?       @relation(fields: [actorId], references: [id])
+  action        AuditAction
+  entity        String
+  entityId      String
+  previousState String?
+  newState      String?
+  metadata      String?
+  createdAt     DateTime    @default(now())
+
+  @@index([entity, entityId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model RiskFlag {
+  id         String     @id @default(cuid())
+  userId     String?
+  user       User?      @relation(fields: [userId], references: [id])
+  entity     String
+  entityId   String
+  level      RiskLevel
+  status     RiskStatus @default(OPEN)
+  reason     String
+  evidence   String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([level, status])
+  @@index([entity, entityId])
+}
+
+model Dispute {
+  id               String          @id @default(cuid())
+  reporterId       String
+  reporter         User            @relation("DisputeReporter", fields: [reporterId], references: [id])
+  reportedEntity   String
+  reportedEntityId String
+  campaignId       String?
+  placementId      String?
+  category         DisputeCategory
+  description      String
+  evidence         String?
+  status           DisputeStatus   @default(OPEN)
+  adminNotes       String?
+  resolution       String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model Job {
+  id             String    @id @default(cuid())
+  type           JobType
+  payload        String
+  idempotencyKey String    @unique
+  status         JobStatus @default(QUEUED)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  availableAt    DateTime  @default(now())
+  lastError      String?
+  lockedAt       DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([status, availableAt])
+}
+
+model NotificationPreference {
+  userId             String   @id
+  user               User     @relation(fields: [userId], references: [id])
+  marketingEnabled   Boolean  @default(true)
+  performanceEnabled Boolean  @default(true)
+  criticalEnabled    Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+}
+
+model InternalNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  authorId  String
+  note      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PerformanceScore {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  successful       Int      @default(0)
+  failed           Int      @default(0)
+  relevance        Float    @default(0)
+  clickRate        Float    @default(0)
+  conversionRate   Float    @default(0)
+  rating           Float    @default(0)
+  reliability      Float    @default(0)
+  completionRate   Float    @default(0)
+  disputeRate      Float    @default(0)
+  cancellationRate Float    @default(0)
+  score            Float    @default(0)
+  calculatedAt     DateTime @default(now())
+
+  @@unique([userId])
+}
+
+model PostingAttempt {
+  id                String   @id @default(cuid())
+  placementId       String
+  attemptNumber     Int
+  status            String
+  error             String?
+  providerMessageId String?
+  attemptedAt       DateTime @default(now())
+
+  @@unique([placementId, attemptNumber])
 }
 
 model Setting {

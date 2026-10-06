@@ -1,0 +1,3 @@
+import { db } from '../db/client.js'; import { recordAudit } from './audit.js';
+export async function getSetting<T=string>(key:string,fallback:T){const item=await db.setting.findUnique({where:{key}});if(!item)return fallback;try{return JSON.parse(item.value) as T;}catch{return item.value as T;}}
+export async function setSetting(actorId:string,key:string,value:unknown){const item=await db.setting.upsert({where:{key},create:{key,value:JSON.stringify(value)},update:{value:JSON.stringify(value)}});await recordAudit({actorId,action:'SETTING_CHANGE',entity:'Setting',entityId:key,newState:value});return item;}

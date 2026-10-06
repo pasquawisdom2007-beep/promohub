@@ -1,0 +1,3 @@
+import { AuditAction } from '@prisma/client'; import { db } from '../db/client.js';
+export function recordAudit(input:{actorId?:string;action:AuditAction;entity:string;entityId:string;previousState?:unknown;newState?:unknown;metadata?:unknown}){return db.auditLog.create({data:{actorId:input.actorId,action:input.action,entity:input.entity,entityId:input.entityId,previousState:input.previousState?JSON.stringify(input.previousState):undefined,newState:input.newState?JSON.stringify(input.newState):undefined,metadata:input.metadata?JSON.stringify(input.metadata):undefined}});}
+export function listAudit(entity:string,entityId:string){return db.auditLog.findMany({where:{entity,entityId},orderBy:{createdAt:'desc'},take:100});}
