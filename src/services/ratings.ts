@@ -1,0 +1,3 @@
+import { RatingTargetType } from '@prisma/client'; import { db } from '../db/client.js';
+export async function createRating(input:{campaignId:string;raterId:string;targetUserId:string;targetType:RatingTargetType;score:number;communityQuality?:number;audienceRelevance?:number;performance?:number;comment?:string}){if(input.score<1||input.score>5)throw new Error('Rating must be between 1 and 5');return db.rating.create({data:input});}
+export async function averageRating(targetUserId:string){const rows=await db.rating.findMany({where:{targetUserId},select:{score:true}});return rows.length?rows.reduce((a,r)=>a+r.score,0)/rows.length:null;}

@@ -1,0 +1,3 @@
+export type PaymentDeposit={id:string;amount:number;currency:string;providerReference:string};
+export interface PaymentProvider { createDeposit(input:{userId:string;amount:number;currency:string;idempotencyKey:string}):Promise<PaymentDeposit>; verifyPayment(providerReference:string):Promise<{paid:boolean;amount:number}>; handleWebhook(payload:unknown,signature:string):Promise<PaymentDeposit>; refundPayment(providerReference:string,amount:number):Promise<void>; }
+export function requireValidWebhookSignature(_payload:unknown,signature:string,expected:string){if(!signature||signature!==expected)throw new Error('Invalid payment webhook signature');return true;}

@@ -1,0 +1,7 @@
+import { describe,expect,it } from 'vitest';
+import { splitAllocation } from '../src/services/allocations.js';
+import { scorePublisher } from '../src/services/matching.js';
+import { requireValidWebhookSignature } from '../src/services/payments.js';
+const publisher={id:'p',userId:'u',status:'ACTIVE',category:'Technology',description:null,audienceLocation:'Nigeria',advertisingPrice:3000,maxAdsPerDay:2,acceptedCategories:'technology,ai',approvalMode:'MANUAL',availability:'AVAILABLE'} as any;
+const community={id:'c',publisherId:'p',name:'Tech Hub',platform:'TELEGRAM_CHANNEL',audienceSize:25000,communityType:'channel',category:'Technology',description:null,targetLocation:'Nigeria',memberCountVerified:true} as any;
+describe('phase 2 marketplace rules',()=>{it('splits configured allocation without hard-coded percentages',()=>expect(splitAllocation(20000,8000,0)).toEqual({publisher:16000,agent:0,commission:4000}));it('scores relevant active communities higher',()=>{const result=scorePublisher({platform:'TELEGRAM_CHANNEL',category:'Technology',targetLocation:'Nigeria',targetAudience:'developers',budget:50000} as any,publisher,community);expect(result.score).toBeGreaterThanOrEqual(90);expect(result.reasons).toContain('accepted category');});it('rejects invalid payment signatures',()=>{expect(()=>requireValidWebhookSignature({},'bad','expected')).toThrow('Invalid payment webhook signature');});});

@@ -44,3 +44,18 @@ The remaining integration verification (Telegram network handshake, full adverti
 ## Phase boundaries
 
 Phase 1 intentionally provides the production-oriented foundation and service boundaries. Phase 2 can add admin UI, payment provider adapters, publisher inventory discovery, analytics ingestion, and complete multi-step Telegram conversations without collapsing the architecture.
+
+## Phase 2 services
+
+Phase 2 extends the foundation without replacing it:
+
+- `publishers.ts` and `agents.ts`: persisted onboarding profiles, statuses, availability, categories, and dashboards.
+- `matching.ts`: explainable scoring using platform, category, country, budget, availability, accepted categories, reputation-ready data, and daily placement limits.
+- `distribution.ts`: transaction-backed placement opportunities and Telegram posting state; no permission bypass is implemented.
+- `agent-workflow.ts`: explicit offer, accept/decline, proof submission, and admin review states for WhatsApp agents. PROMOHUB does not send unsolicited bulk WhatsApp messages.
+- `tracking.ts` and `analytics.ts`: per-placement links, click events, estimated reach, and conservative conversion reporting.
+- `allocations.ts` and `withdrawals.ts`: configurable basis-point allocation, idempotent ledger entries, and guarded withdrawal requests.
+- `payments.ts`: replaceable provider interface with webhook signature-validation boundary; a live provider is intentionally not claimed until configured and tested.
+- `ratings.ts`, `referrals.ts`, and `admin.ts`: persisted reputation/referral primitives and real-data aggregate metrics.
+
+When data is unavailable, analytics return zero/null values rather than fabricated records. The Telegram adapter remains deliberately thin; live Telegram permission verification, payment-provider integration, and end-to-end network tests require configured external credentials.
